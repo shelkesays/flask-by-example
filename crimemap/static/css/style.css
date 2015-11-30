@@ -35,3 +35,7 @@ input[type="submit"]:hover {
     width: 25%;
 }
 
+#error {
+    color: red;
+}
+
