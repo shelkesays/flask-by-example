@@ -12,8 +12,9 @@ import dbconfig as config
 from mockdbhelper import MockDBHelper as DBHelper
 from user import User
 from bitlyhelper import BitlyHelper
-
 from forms import RegistrationForm
+from forms import LoginForm
+from forms import CreateTableForm
 
 ROOT_URL = "http://127.0.0.1:5000/"
 
@@ -28,20 +29,20 @@ login_manager = LoginManager(app)
 
 @app.route("/")
 def home():
-	registrationform = RegistrationForm()
-	return render_template("home.html", registrationform=registrationform)
+	return render_template("home.html", loginform=LoginForm(), registrationform=RegistrationForm())
 
 
 @app.route("/login", methods=["POST"])
 def login():
-    email = request.form.get("email")
-    password = request.form.get("password")
-    stored_user = DB.get_user(email)
-    if stored_user and PH.validate_password(password, stored_user['salt'], stored_user['hashed']):
-        user = User(email)
-        login_user(user, remember=True)
-        return redirect(url_for('account'))
-    return home()
+	form = LoginForm(request.form)
+	if form.validate():
+		stored_user = DB.get_user(form.email.data)
+		if stored_user and PH.validate_password(form.password.data, stored_user['salt'], stored_user['hashed']):
+			user = User(form.email.data)
+			login_user(user, remember=True)
+			return redirect(url_for('account'))
+		form.email.errors.append("Email or password invalid")
+	return render_template("home.html", loginform=form, registrationform=RegistrationForm())
 
 
 @app.route("/logout")
@@ -56,26 +57,13 @@ def register():
 	if form.validate():
 		if DB.get_user(form.email.data):
 			form.email.errors.append("Email address already registered")
-			return render_template('home.html', registrationform=form)
+			return render_template("home.html", loginform=LoginForm(), 	registrationform=form)
 		salt = PH.get_salt()
 		hashed = PH.get_hash(form.password2.data + salt)
 		DB.add_user(form.email.data, salt, hashed)
-		return redirect(url_for('home'))
-	return render_template('home.html', registrationform=form)
-'''
-    email = request.form.get("email")
-    pw1 = request.form.get("password")
-    pw2 = request.form.get("password2")
-    if not pw1 == pw2:
-        return  redirect(url_for('home'))
-    if DB.get_user(email):
-        return redirect(url_for('home'))
-    salt = PH.get_salt()
-    hashed = PH.get_hash(pw1)
-    hashed = PH.get_hash(pw1 + salt)
-    DB.add_user(email, salt, hashed)
-    return redirect(url_for('home'))
-'''
+		return render_template("home.html", loginform=LoginForm(), registrationform=form, onloadmessage="Registration successful. Please log in.")
+	return render_template("home.html", loginform=LoginForm(), registrationform=form)
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -107,17 +95,20 @@ def dashboard_resolve():
 @login_required
 def account():
 	tables = DB.get_tables(current_user.get_id())
-	return render_template("account.html", tables=tables)
+	return render_template("account.html", createtableform=CreateTableForm(request.form), tables=tables)
 
 
 @app.route("/account/createtable", methods=["POST"])
 @login_required
 def account_createtable():
-	tablename = request.form.get("tablenumber")
-	tableid = DB.add_table(tablename, current_user.get_id())
-	new_url = BH.shorten_url(ROOT_URL + "newrequest/" + tableid)
-	DB.update_table(tableid, new_url)
-	return redirect(url_for('account'))
+    form = CreateTableForm(request.form)
+    print(form.tablenumber.data)
+    if form.validate():
+        tableid = DB.add_table(form.tablenumber.data, current_user.get_id())
+        new_url = BH.shorten_url(ROOT_URL + "newrequest/" + tableid)
+        DB.update_table(tableid, new_url)
+        return redirect(url_for('account'))
+    return render_template("account.html", createtableform=form, tables=DB.get_tables(current_user.get_id()))
 
 
 @app.route("/account/deletetable")

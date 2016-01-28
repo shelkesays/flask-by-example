@@ -1,5 +1,8 @@
 {% extends "base.html" %}
 
+{% block bodytag %}
+  <body {% if onloadmessage %} onload="alert('{{onloadmessage}}');" {% endif %}>
+{% endblock %}
 {% block content %}
     <nav class="navbar navbar-inverse navbar-fixed-top">
       <div class="container">
@@ -14,14 +17,26 @@
                   </div>
         <div id="navbar" class="navbar-collapse collapse">
           <form class="navbar-form navbar-right" action="/login" method="POST">
-            <div class="form-group">
-              <input type="text" name="email" placeholder="Email" class="form-control" autofocus>
-            </div>
-            <div class="form-group">
-              <input type="password" name="password" placeholder="Password" class="form-control">
-            </div>
-            <input type="submit" value="Sign in" class="btn btn-success">
-          </form>
+              {% if loginform.errors %}
+                <ul class="errors">
+                  {% for field_name, field_errors in loginform.errors|dictsort if field_errors %}
+                    {% for error in field_errors %}
+                      <li>{{ error }}</li>
+                    {% endfor %}
+                  {% endfor %}
+                </ul>
+              {% endif %}
+              {{ loginform.csrf_token}}
+              <div class="form-group">
+                {{ loginform.email(class="form-control", placeholder="Email Address")}}
+              </div>
+              <div class="form-group">
+                {{ loginform.password(class="form-control", placeholder="Password")}}
+              </div>
+              <div class="form-group">
+                {{ loginform.submit(value="Sign in", class="btn btn-success")}}
+              </div>
+            </form>
         </div><!--/.navbar-collapse -->
       </div>
     </nav>
